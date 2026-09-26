@@ -14,7 +14,7 @@ import type { RequestSpec } from "./types.ts";
 export async function perform(spec: RequestSpec): Promise<void> {
   if (!dispatch(spec.source, "dp:beforeRequest", { spec })) return;
 
-  const url = fragmentUrl(spec.url, documentBase(spec.source));
+  const url = resolve(spec);
   const indicator = spec.indicator;
   indicator?.classList.add(config.requestClass);
 
@@ -80,6 +80,21 @@ function swapRoot(spec: RequestSpec): Element {
     default:
       return spec.target.parentElement ?? spec.target.ownerDocument.documentElement;
   }
+}
+
+/**
+ * What to actually fetch.
+ *
+ * A boosted navigation wants the page's prerendered fragment; a declared
+ * request wants the URL it named, which is what lets the same library drive a
+ * static site and a server.
+ */
+function resolve(spec: RequestSpec): string {
+  const base = documentBase(spec.source);
+  if (spec.fragment) return fragmentUrl(spec.url, base);
+
+  const parsed = new URL(spec.url, base ?? "http://localhost");
+  return parsed.pathname + parsed.search + parsed.hash;
 }
 
 async function fetchWithTimeout(url: string): Promise<Response> {

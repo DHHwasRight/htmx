@@ -10,9 +10,13 @@ features a static site actually needs, in TypeScript, with no dependencies.
 htmx assumes a server that returns HTML per request. A static site has no
 server, so every navigation is a full document load unless you ship a router.
 
-dp-swap inverts that: because the site generator prerenders every route, it can
-also emit that route's content on its own. A partial navigation becomes a static
-file read that any CDN can serve.
+dp-swap inverts that for navigation: because the site generator prerenders
+every route, it can also emit that route's content on its own. A boosted
+navigation becomes a static file read that any CDN can serve.
+
+It does not assume that for everything. A declared `dp-get` fetches the URL it
+names, so the same library drives a server-backed app as readily as a
+prerendered one — which is the point, since these are two different projects.
 
 ```
 dist/guides/build/index.html      full document, what a crawler and a
@@ -59,9 +63,20 @@ For a request that is not a navigation:
 | `dp-push-url` | Push a URL into history. |
 | `dp-indicator` | Element to mark with `dp-request` while in flight. |
 | `dp-prefetch` | Fetch a link's fragment on pointer intent, before the click. `dp-prefetch="false"` opts a link back out. |
+| `dp-fragment` | Make a `dp-get` fetch the prerendered fragment of its URL rather than the URL itself. |
 
-`dp-target`, `dp-swap`, `dp-select`, `dp-push-url`, `dp-indicator` and
-`dp-prefetch` are inherited from the nearest ancestor that declares them, so one
+### Which URL gets fetched
+
+A **boosted navigation** fetches the page's prerendered fragment: going to
+`/guides` means wanting what is on that page, and on a prerendered site that
+content already exists as a file.
+
+A **declared `dp-get`** fetches exactly the URL it names. `dp-get="/api/search"`
+requests `/api/search`, not a rendering of it. Add `dp-fragment` when a static
+page wants another page's content without hard-coding the suffix.
+
+`dp-target`, `dp-swap`, `dp-select`, `dp-push-url`, `dp-indicator`,
+`dp-prefetch` and `dp-fragment` are inherited from the nearest ancestor that declares them, so one
 declaration on a container covers every link inside it.
 
 ### Prefetching
@@ -121,8 +136,8 @@ server rendered it. That is the whole point of rendering it first.
 
 ## What is deliberately missing
 
-- **Mutating verbs.** `dp-post` and friends presuppose a server. The names are
-  reserved so adding them later is additive.
+- **Mutating verbs.** `dp-post` and friends need a server. The names are
+  reserved, and the URL rule above means adding them is additive.
 - **The `HX-*` response header protocol.** Same reason: a static file has no
   say in how it is swapped.
 - **Extensions, templates, SSE, websockets, morphing.** Out of scope.

@@ -55,6 +55,15 @@ export interface RequestSpec {
   indicator: Element | null;
   /** A boosted navigation, which falls back to a full page load on error. */
   boosted: boolean;
+  /**
+   * Fetch the prerendered fragment of `url` rather than `url` itself.
+   *
+   * True for a boosted navigation, since navigating to a page on a
+   * prerendered site means fetching that page's content. False for a declared
+   * request, which fetches exactly the URL it names — that is what makes this
+   * usable against a server as well as against static files.
+   */
+  fragment: boolean;
 }
 
 export interface Config {

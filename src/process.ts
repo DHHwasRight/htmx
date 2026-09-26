@@ -81,6 +81,10 @@ function specFor(el: Element): RequestSpec | null {
     pushUrl: push === "true" ? url : push === "false" || push === null ? null : push,
     indicator: resolveTarget(el, inherited(el, "indicator")),
     boosted: false,
+    // A declared request fetches what it names. `dp-fragment` opts into the
+    // prerendered-fragment mapping for the case where a static page wants
+    // another page's content without hard-coding the suffix.
+    fragment: inherited(el, "fragment") !== null,
   };
 }
 
@@ -121,6 +125,7 @@ function bindBoost(el: Element): void {
       pushUrl: url,
       indicator: resolveTarget(link, inherited(link, "indicator")),
       boosted: true,
+      fragment: true,
     });
   });
 }
@@ -215,6 +220,7 @@ export function bindHistory(doc: Document): void {
       pushUrl: null,
       indicator: null,
       boosted: true,
+      fragment: true,
     });
   });
 }

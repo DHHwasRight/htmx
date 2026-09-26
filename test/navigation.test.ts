@@ -59,7 +59,7 @@ test("a declared request targets and swaps what it was told to", async () => {
   const { doc } = harness(
     `<button id="more" dp-get="/page/2" dp-target="#list" dp-swap="beforeend">More</button>
      <ul id="list"><li>one</li></ul>`,
-    { "/page/2/_fragment.html": "<li>two</li>" },
+    { "/page/2": "<li>two</li>" },
   );
   process(doc);
 
@@ -72,7 +72,7 @@ test("a declared request targets and swaps what it was told to", async () => {
 test("dp-select narrows a full page response to one region", async () => {
   const { doc } = harness(
     `<a id="link" dp-get="/about" dp-target="#c" dp-select="#main">About</a><div id="c"></div>`,
-    { "/about/_fragment.html": `<div><nav>skip</nav><div id="main">kept</div></div>` },
+    { "/about": `<div><nav>skip</nav><div id="main">kept</div></div>` },
   );
   process(doc);
 
@@ -86,7 +86,7 @@ test("the indicator is marked for the duration of the request", async () => {
   const { doc } = harness(
     `<a id="link" dp-get="/x" dp-target="#c" dp-indicator="#spin">go</a>
      <span id="spin"></span><div id="c"></div>`,
-    { "/x/_fragment.html": "<p>done</p>" },
+    { "/x": "<p>done</p>" },
   );
   process(doc);
 
@@ -101,7 +101,7 @@ test("the indicator is marked for the duration of the request", async () => {
 test("events fire in lifecycle order and beforeSwap can cancel", async () => {
   const { doc } = harness(
     `<a id="link" dp-get="/x" dp-target="#c">go</a><div id="c">original</div>`,
-    { "/x/_fragment.html": "<p>new</p>" },
+    { "/x": "<p>new</p>" },
   );
   process(doc);
 
@@ -140,8 +140,8 @@ test("content swapped in is bound without rebinding the page", async () => {
   const { doc, requested } = harness(
     `<a id="first" dp-get="/one" dp-target="#c">one</a><div id="c"></div>`,
     {
-      "/one/_fragment.html": `<a id="second" dp-get="/two" dp-target="#c">two</a>`,
-      "/two/_fragment.html": `<p>done</p>`,
+      "/one": `<a id="second" dp-get="/two" dp-target="#c">two</a>`,
+      "/two": `<p>done</p>`,
     },
   );
   process(doc);
@@ -155,14 +155,14 @@ test("content swapped in is bound without rebinding the page", async () => {
   click(doc.querySelector("#second")!);
   await flush();
 
-  assert.deepEqual(requested, ["/one/_fragment.html", "/two/_fragment.html"]);
+  assert.deepEqual(requested, ["/one", "/two"]);
   assert.equal(doc.querySelector("#c")!.innerHTML, "<p>done</p>");
 });
 
 test("a trigger fires once when asked to", async () => {
   const { doc, requested } = harness(
     `<button id="b" dp-get="/x" dp-target="#c" dp-trigger="click once">go</button><div id="c"></div>`,
-    { "/x/_fragment.html": "<p>ok</p>" },
+    { "/x": "<p>ok</p>" },
   );
   process(doc);
 
@@ -172,14 +172,42 @@ test("a trigger fires once when asked to", async () => {
   click(button);
   await flush();
 
-  assert.deepEqual(requested, ["/x/_fragment.html"]);
+  assert.deepEqual(requested, ["/x"]);
+});
+
+test("a declared request fetches the url it names, not a fragment of it", async () => {
+  const { doc, requested } = harness(
+    `<a id="link" dp-get="/api/search?q=x" dp-target="#c">go</a><div id="c"></div>`,
+    { "/api/search?q=x": "<p>ok</p>" },
+  );
+  process(doc);
+
+  click(doc.querySelector("#link")!);
+  await flush();
+
+  // This is what lets the same library drive a server as well as a
+  // prerendered site: dp-get means fetch this, not fetch a rendering of this.
+  assert.deepEqual(requested, ["/api/search?q=x"]);
+});
+
+test("dp-fragment opts a declared request into the fragment mapping", async () => {
+  const { doc, requested } = harness(
+    `<a id="link" dp-get="/page/2" dp-fragment dp-target="#c">more</a><div id="c"></div>`,
+    { "/page/2/_fragment.html": "<p>ok</p>" },
+  );
+  process(doc);
+
+  click(doc.querySelector("#link")!);
+  await flush();
+
+  assert.deepEqual(requested, ["/page/2/_fragment.html"]);
 });
 
 test("the fragment suffix is configurable", async () => {
   configure({ fragmentSuffix: ".part.html" });
 
   const { doc, requested } = harness(
-    `<a id="link" dp-get="/about" dp-target="#c">go</a><div id="c"></div>`,
+    `<nav dp-boost dp-target="#c"><a id="link" href="/about">go</a></nav><div id="c"></div>`,
     { "/about.part.html": "<p>ok</p>" },
   );
   process(doc);
