@@ -6,7 +6,9 @@ export type DpEventName =
   | "dp:afterSettle"
   | "dp:afterRequest"
   | "dp:responseError"
-  | "dp:sendError";
+  | "dp:sendError"
+  | "dp:island"
+  | "dp:islandError";
 
 /**
  * Dispatches a cancelable event on the element. Returns false when a listener

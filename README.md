@@ -3,7 +3,7 @@
 Partial page updates for prerendered sites. An htmx rewrite reduced to the
 features a static site actually needs, in TypeScript, with no dependencies.
 
-**9.4 kB minified.**
+**11.0 kB minified.**
 
 ## Why not htmx
 
@@ -84,11 +84,40 @@ prefetch is forgotten so the real request reports the failure itself.
 ### Events
 
 `dp:beforeRequest`, `dp:beforeSwap`, `dp:afterSwap`, `dp:afterSettle`,
-`dp:afterRequest`, `dp:responseError`, `dp:sendError`.
+`dp:afterRequest`, `dp:responseError`, `dp:sendError`, `dp:island`,
+`dp:islandError`.
 
 Request events fire on the element that triggered the request; swap events fire
 on the element that received the content, so a listener can bind what just
 arrived. Cancelling `dp:beforeRequest` or `dp:beforeSwap` stops there.
+
+## Islands
+
+A server-rendered placeholder names a module and says when it is worth loading:
+
+```html
+<div dp-island="/islands/search.js"
+     dp-client="visible"
+     dp-props='{"placeholder":"Search this page..."}'>
+  <input disabled placeholder="Search...">
+</div>
+```
+
+```js
+export default function mount(element, props) { ... }
+```
+
+`dp-client` takes `load`, `idle`, `visible`, or `media:(min-width: 40rem)`.
+There is no default beyond `load`, because every island spends network and main
+thread on part of a page and should say why.
+
+The module is loaded with a dynamic `import()`, so it is any ES module —
+preact, effect, whatever the project reaches for. Islands inside content that
+arrives through a partial navigation hydrate the same way as islands in the
+first response.
+
+If the module fails to load, the markup underneath it stays exactly as the
+server rendered it. That is the whole point of rendering it first.
 
 ## What is deliberately missing
 

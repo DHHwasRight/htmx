@@ -1,4 +1,5 @@
 import { config, configure, fragmentUrl } from "./config.ts";
+import { hydrate } from "./islands.ts";
 import { bindHistory, process } from "./process.ts";
 import { perform } from "./request.ts";
 import * as prefetching from "./prefetch.ts";
@@ -13,7 +14,8 @@ export type {
   TriggerSpec,
 } from "./types.ts";
 export type { DpEventName } from "./events.ts";
-export { config, configure, fragmentUrl, perform, process };
+export type { ClientDirective, Mount } from "./islands.ts";
+export { config, configure, fragmentUrl, hydrate, perform, process };
 
 /**
  * Binds the document and starts listening for history navigation. Content
@@ -22,11 +24,15 @@ export { config, configure, fragmentUrl, perform, process };
  */
 export function start(doc: Document = document): void {
   process(doc);
+  hydrate(doc);
   bindHistory(doc);
 
   doc.addEventListener("dp:afterSwap", (event) => {
     const target = event.target as Element | null;
-    if (target && "querySelectorAll" in target) process(target);
+    if (!target || !("querySelectorAll" in target)) return;
+
+    process(target);
+    hydrate(target);
   });
 }
 
