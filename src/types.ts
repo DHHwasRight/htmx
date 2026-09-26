@@ -72,6 +72,8 @@ export interface Config {
   defaultBoostTarget: string;
   /** How long to wait for a response before giving up, in milliseconds. */
   timeout: number;
+  /** How many prefetched fragments to keep before discarding the oldest. */
+  prefetchLimit: number;
   /** Fetch implementation, swappable for tests. */
   fetch: typeof fetch;
 }

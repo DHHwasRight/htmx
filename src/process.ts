@@ -1,6 +1,7 @@
 import { attr, hasAttr, inherited, parseSwap, parseTrigger, resolveTarget } from "./attrs.ts";
 import { config } from "./config.ts";
 import * as history from "./history.ts";
+import { prefetch } from "./prefetch.ts";
 import { perform } from "./request.ts";
 import type { RequestSpec } from "./types.ts";
 
@@ -94,6 +95,8 @@ function bindBoost(el: Element): void {
   if (BOUND.has(el)) return;
   BOUND.add(el);
 
+  bindPrefetch(el);
+
   el.addEventListener("click", (event) => {
     const link = boostableLink(event);
     if (!link) return;
@@ -151,6 +154,44 @@ function boostableLink(event: Event): HTMLAnchorElement | null {
   if (view && new URL(href, view.location.href).origin !== view.location.origin) return null;
 
   return link;
+}
+
+/**
+ * Starts fetching a page while the pointer is still on its way to the click.
+ * The intent is usually a good few hundred milliseconds ahead of the event,
+ * which is long enough for a static fragment to have arrived.
+ *
+ * Opt in with `dp-prefetch` on the boosted container or a single link;
+ * `dp-prefetch="false"` opts a link back out.
+ */
+function bindPrefetch(el: Element): void {
+  const start = (event: Event) => {
+    const link = boostableLink(event) ?? closestLink(event);
+    if (!link) return;
+    // Presence is the opt-in, so `dp-prefetch` alone enables it. `inherited`
+    // returns the nearest declaration, which lets a link opt back out of a
+    // container that opted in.
+    const setting = inherited(link, "prefetch");
+    if (setting === null || setting === "false") return;
+
+    const href = link.getAttribute("href");
+    if (href) prefetch(href, link.ownerDocument.defaultView?.location.href);
+  };
+
+  el.addEventListener("pointerenter", start, { capture: true });
+  el.addEventListener("focusin", start);
+  el.addEventListener("touchstart", start, { passive: true });
+}
+
+/** The link under an event, whether or not the event is a boostable click. */
+function closestLink(event: Event): HTMLAnchorElement | null {
+  const link = (event.target as Element | null)?.closest("a");
+  if (!link || link.tagName.toLowerCase() !== "a") return null;
+
+  const href = link.getAttribute("href");
+  if (!href || href.startsWith("#") || href.includes("://")) return null;
+
+  return link as HTMLAnchorElement;
 }
 
 /** Restores a swap when the user navigates back or forward. */

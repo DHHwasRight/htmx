@@ -3,7 +3,7 @@
 Partial page updates for prerendered sites. An htmx rewrite reduced to the
 features a static site actually needs, in TypeScript, with no dependencies.
 
-**8.4 kB minified.**
+**9.1 kB minified.**
 
 ## Why not htmx
 
@@ -58,10 +58,23 @@ For a request that is not a navigation:
 | `dp-trigger` | Which event fires the request, plus `once`, `changed`, `delay:<time>`, `throttle:<time>`, `from:<sel>`. Also `load` and `revealed`. |
 | `dp-push-url` | Push a URL into history. |
 | `dp-indicator` | Element to mark with `dp-request` while in flight. |
+| `dp-prefetch` | Fetch a link's fragment on pointer intent, before the click. `dp-prefetch="false"` opts a link back out. |
 
-`dp-target`, `dp-swap`, `dp-select`, `dp-push-url` and `dp-indicator` are
-inherited from the nearest ancestor that declares them, so one declaration on a
-container covers every link inside it.
+`dp-target`, `dp-swap`, `dp-select`, `dp-push-url`, `dp-indicator` and
+`dp-prefetch` are inherited from the nearest ancestor that declares them, so one
+declaration on a container covers every link inside it.
+
+### Prefetching
+
+```html
+<nav dp-boost dp-prefetch dp-target="#content"> ... </nav>
+```
+
+A pointer entering a link, or focus reaching it, starts fetching that page's
+fragment. Intent usually runs a few hundred milliseconds ahead of the click,
+which is long enough for a static file to arrive, so the click has nothing left
+to wait for. The cache is bounded (`prefetchLimit`, 32 by default) and a failed
+prefetch is forgotten so the real request reports the failure itself.
 
 ### Swap styles
 

@@ -5,6 +5,8 @@ export interface Harness {
   doc: Document;
   /** Every fragment URL requested, in order. */
   requested: string[];
+  /** Every URL the library handed back to the browser. */
+  navigated: string[];
 }
 
 /**
@@ -14,12 +16,13 @@ export interface Harness {
 export function harness(html: string, responses: Record<string, string> = {}): Harness {
   const { document, window } = parseHTML(`<html><body>${html}</body></html>`);
   const requested: string[] = [];
+  const navigated: string[] = [];
 
-  // linkedom has no location by default; requests resolve against this.
-  Object.defineProperty(window, "location", {
-    value: new URL("http://test.local/"),
-    configurable: true,
-  });
+  // linkedom has no location; requests resolve against this one, and assign
+  // records the full navigations the library falls back to.
+  const location = new URL("http://test.local/") as URL & { assign(url: string): void };
+  location.assign = (url: string) => void navigated.push(url);
+  Object.defineProperty(window, "location", { value: location, configurable: true });
 
   configure({
     fetch: async (input) => {
@@ -33,7 +36,7 @@ export function harness(html: string, responses: Record<string, string> = {}): H
     },
   });
 
-  return { doc: document as unknown as Document, requested };
+  return { doc: document as unknown as Document, requested, navigated };
 }
 
 /** Lets queued microtasks and the awaited fetch chain finish. */

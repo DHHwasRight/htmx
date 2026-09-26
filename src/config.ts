@@ -6,6 +6,7 @@ export const config: Config = {
   settlingClass: "dp-settling",
   defaultBoostTarget: "body",
   timeout: 10_000,
+  prefetchLimit: 32,
   fetch: (...args) => globalThis.fetch(...args),
 };
 

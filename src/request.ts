@@ -1,5 +1,6 @@
 import { config, fragmentUrl } from "./config.ts";
 import { dispatch } from "./events.ts";
+import { take } from "./prefetch.ts";
 import { applyOutOfBand, parseFragment, selectFrom, settle, swapInto } from "./swap.ts";
 import type { RequestSpec } from "./types.ts";
 
@@ -18,6 +19,14 @@ export async function perform(spec: RequestSpec): Promise<void> {
   indicator?.classList.add(config.requestClass);
 
   try {
+    // A hover long enough to have started a prefetch turns the click into a
+    // swap with nothing to wait for.
+    const prefetched = await take(url)?.catch(() => null);
+    if (prefetched !== null && prefetched !== undefined) {
+      apply(spec, prefetched);
+      return;
+    }
+
     const response = await fetchWithTimeout(url);
 
     if (!response.ok) {

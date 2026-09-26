@@ -1,6 +1,7 @@
 import { config, configure, fragmentUrl } from "./config.ts";
 import { bindHistory, process } from "./process.ts";
 import { perform } from "./request.ts";
+import * as prefetching from "./prefetch.ts";
 import * as swap from "./swap.ts";
 
 export type {
@@ -30,6 +31,7 @@ export function start(doc: Document = document): void {
 }
 
 export const swapping = swap;
+export const prefetch = prefetching;
 
 const auto = globalThis.document;
 if (auto && auto.currentScript?.hasAttribute("data-dp-auto") !== false) {
