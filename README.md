@@ -3,7 +3,7 @@
 Partial page updates for prerendered sites. An htmx rewrite reduced to the
 features a static site actually needs, in TypeScript, with no dependencies.
 
-**9.1 kB minified.**
+**9.4 kB minified.**
 
 ## Why not htmx
 
