@@ -1,0 +1,26 @@
+{
+  "name": "@brocanth/dpswap",
+  "version": "0.1.0",
+  "description": "Static-first partial page swaps. An htmx rewrite reduced to what a prerendered site needs.",
+  "type": "module",
+  "main": "dist/dpswap.js",
+  "module": "dist/dpswap.js",
+  "types": "dist/dpswap.d.ts",
+  "files": [
+    "dist",
+    "src"
+  ],
+  "scripts": {
+    "build": "node build.js",
+    "typecheck": "tsc --noEmit",
+    "test": "node --experimental-strip-types --test test/*.test.ts",
+    "ci": "npm run typecheck && npm test && npm run build"
+  },
+  "devDependencies": {
+    "@types/node": "^26.6.3",
+    "esbuild": "^0.25.0",
+    "linkedom": "^0.18.0",
+    "typescript": "^5.7.0"
+  },
+  "license": "MIT"
+}

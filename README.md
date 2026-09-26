@@ -1,0 +1,108 @@
+# dp-swap
+
+Partial page updates for prerendered sites. An htmx rewrite reduced to the
+features a static site actually needs, in TypeScript, with no dependencies.
+
+**8.4 kB minified.**
+
+## Why not htmx
+
+htmx assumes a server that returns HTML per request. A static site has no
+server, so every navigation is a full document load unless you ship a router.
+
+dp-swap inverts that: because the site generator prerenders every route, it can
+also emit that route's content on its own. A partial navigation becomes a static
+file read that any CDN can serve.
+
+```
+dist/guides/build/index.html      full document, what a crawler and a
+                                  no-JavaScript visitor get
+dist/guides/build/_fragment.html  the content alone, what a swap fetches
+```
+
+Every page keeps working with JavaScript disabled. `dp-boost` enhances real
+`<a href>` links; a fragment is never the only representation of a page, and a
+failed request falls back to the navigation the browser would have done anyway.
+
+## Usage
+
+```html
+<script src="/dpswap.min.js"></script>
+
+<nav dp-boost dp-target="#content">
+  <a href="/guides">Guides</a>
+  <a href="/guides/build">Build</a>
+</nav>
+<main id="content">...</main>
+```
+
+Links inside the boosted container now swap `#content` and push history.
+Back and forward replay the swap.
+
+For a request that is not a navigation:
+
+```html
+<button dp-get="/page/2" dp-target="#list" dp-swap="beforeend">More</button>
+```
+
+## Attributes
+
+| Attribute | Purpose |
+|---|---|
+| `dp-boost` | Turn descendant links into partial navigations. `dp-boost="false"` opts a link out. |
+| `dp-get` | Request this URL's fragment. |
+| `dp-target` | Where the response goes. CSS selector, `this`, `closest <sel>`, `find <sel>`, `next`, `previous`. |
+| `dp-swap` | How it goes there, plus `scroll:top`, `scroll:bottom`, `swap:<time>`. |
+| `dp-select` | Take only the matching subtree out of the response. |
+| `dp-swap-oob` | On a response element: swap it somewhere else. `<style>` or `<style>:<selector>`. |
+| `dp-trigger` | Which event fires the request, plus `once`, `changed`, `delay:<time>`, `throttle:<time>`, `from:<sel>`. Also `load` and `revealed`. |
+| `dp-push-url` | Push a URL into history. |
+| `dp-indicator` | Element to mark with `dp-request` while in flight. |
+
+`dp-target`, `dp-swap`, `dp-select`, `dp-push-url` and `dp-indicator` are
+inherited from the nearest ancestor that declares them, so one declaration on a
+container covers every link inside it.
+
+### Swap styles
+
+`innerHTML` (default), `outerHTML`, `beforebegin`, `afterbegin`, `beforeend`,
+`afterend`, `delete`, `none` — htmx's set, unchanged.
+
+### Events
+
+`dp:beforeRequest`, `dp:beforeSwap`, `dp:afterSwap`, `dp:afterSettle`,
+`dp:afterRequest`, `dp:responseError`, `dp:sendError`.
+
+Request events fire on the element that triggered the request; swap events fire
+on the element that received the content, so a listener can bind what just
+arrived. Cancelling `dp:beforeRequest` or `dp:beforeSwap` stops there.
+
+## What is deliberately missing
+
+- **Mutating verbs.** `dp-post` and friends presuppose a server. The names are
+  reserved so adding them later is additive.
+- **The `HX-*` response header protocol.** Same reason: a static file has no
+  say in how it is swapped.
+- **Extensions, templates, SSE, websockets, morphing.** Out of scope.
+
+## Configuration
+
+```js
+dpswap.configure({
+  fragmentSuffix: "/_fragment.html",
+  defaultBoostTarget: "body",
+  timeout: 10000,
+});
+```
+
+## Development
+
+```
+npm install
+npm run ci      # typecheck, test, build
+```
+
+Tests run on linkedom rather than a browser. The library never reaches for a
+global DOM constructor — events, history and location all come from the
+document being operated on — which is what makes that possible and what keeps
+it usable from a server-side DOM.
