@@ -1,7 +1,14 @@
-import { config, fragmentUrl } from "./config.ts";
+import { config, fragmentUrl, requestHeaders } from "./config.ts";
 import { dispatch } from "./events.ts";
 import { take } from "./prefetch.ts";
-import { applyOutOfBand, parseFragment, selectFrom, settle, swapInto } from "./swap.ts";
+import {
+  applyOutOfBand,
+  narrowToSharedLayout,
+  parseFragment,
+  selectFrom,
+  settle,
+  swapInto,
+} from "./swap.ts";
 import type { RequestSpec } from "./types.ts";
 
 /**
@@ -27,7 +34,7 @@ export async function perform(spec: RequestSpec): Promise<void> {
       return;
     }
 
-    const response = await fetchWithTimeout(url);
+    const response = await fetchWithTimeout(url, spec.fragment);
 
     if (!response.ok) {
       dispatch(spec.source, "dp:responseError", { spec, response });
@@ -50,18 +57,27 @@ function apply(spec: RequestSpec, html: string): void {
 
   const parsed = parseFragment(doc, html);
   applyOutOfBand(doc, parsed);
-  const content = selectFrom(doc, parsed, spec.select);
+  let content = selectFrom(doc, parsed, spec.select);
 
-  if (!dispatch(spec.target, "dp:beforeSwap", { spec, content })) return;
+  // Only a whole-content replacement can be narrowed. An explicit dp-select or
+  // a positional swap means the author chose the region, so leave it alone.
+  let target = spec.target;
+  if (!spec.select && spec.swap.style === "innerHTML") {
+    const narrowed = narrowToSharedLayout(target, content);
+    target = narrowed.target;
+    content = narrowed.content;
+  }
+
+  if (!dispatch(target, "dp:beforeSwap", { spec, content })) return;
 
   // Resolved before the swap: a style that replaces or removes the target
   // leaves it detached, and an event on a detached node reaches no listener.
-  const root = swapRoot(spec);
+  const root = swapRoot({ ...spec, target });
 
-  swapInto(spec.target, content, spec.swap);
+  swapInto(target, content, spec.swap);
   dispatch(root, "dp:afterSwap", { spec });
 
-  settle(spec.target, spec.swap);
+  settle(target, spec.swap);
   dispatch(root, "dp:afterSettle", { spec });
 }
 
@@ -97,14 +113,14 @@ function resolve(spec: RequestSpec): string {
   return parsed.pathname + parsed.search + parsed.hash;
 }
 
-async function fetchWithTimeout(url: string): Promise<Response> {
+async function fetchWithTimeout(url: string, fragment: boolean): Promise<Response> {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), config.timeout);
 
   try {
     return await config.fetch(url, {
       signal: controller.signal,
-      headers: { "DP-Request": "true" },
+      headers: requestHeaders(fragment),
     });
   } finally {
     clearTimeout(timer);

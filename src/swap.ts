@@ -113,3 +113,51 @@ export function settle(target: Element, spec: SwapSpec): void {
   if (spec.scroll === "top") target.scrollTop = 0;
   if (spec.scroll === "bottom") target.scrollTop = target.scrollHeight;
 }
+
+/**
+ * Narrows a swap to the deepest layout both pages share.
+ *
+ * A prerendered partial contains every layout below the root, because the
+ * server has no idea where the visitor is coming from. The client does: the
+ * old DOM is right there. Walking both trees down their `dp-layout` markers
+ * finds the last layer whose prefix matches on both sides, and only what is
+ * below that is actually replaced.
+ *
+ * So moving between two guides leaves the docs sidebar untouched, while
+ * arriving from outside the section replaces it. The returned element is also
+ * what gets the settling class, so the animation covers exactly the region
+ * that changed.
+ *
+ * Returns the original pair unchanged when there are no markers, which is the
+ * case for a declared `dp-get` against a server that knows nothing about this.
+ */
+export function narrowToSharedLayout(
+  target: Element,
+  content: DocumentFragment,
+): { target: Element; content: DocumentFragment } {
+  // Not `attr`: that name is already the attribute-reading helper imported
+  // above, and shadowing it here would be a trap for the next reader.
+  const layoutAttr = config.layoutAttr;
+  if (!layoutAttr) return { target, content };
+
+  const selector = `[${layoutAttr}]`;
+  let oldScope: ParentNode = target;
+  let newScope: ParentNode = content;
+
+  for (;;) {
+    const oldLayer = oldScope.querySelector(selector);
+    const newLayer = newScope.querySelector(selector);
+    if (!oldLayer || !newLayer) break;
+    if (oldLayer.getAttribute(layoutAttr) !== newLayer.getAttribute(layoutAttr)) break;
+    oldScope = oldLayer;
+    newScope = newLayer;
+  }
+
+  if (oldScope === target) return { target, content };
+
+  // Move the shared layer's new children into a fragment of their own; the
+  // layer element itself already exists in the page and is kept.
+  const narrowed = target.ownerDocument.createDocumentFragment();
+  narrowed.append(...Array.from(newScope.childNodes));
+  return { target: oldScope as Element, content: narrowed };
+}

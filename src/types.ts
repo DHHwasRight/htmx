@@ -73,6 +73,27 @@ export interface Config {
    * for the content alone.
    */
   fragmentSuffix: string;
+  /**
+   * How a fragment is addressed.
+   *
+   * `"suffix"` requests a different URL (`fragmentSuffix`), which works on any
+   * static host. `"header"` requests the same URL and lets the server choose
+   * the representation, which keeps URLs single but requires a server that
+   * routes on the header -- and a `Vary` on it, or a cache will eventually
+   * hand a fragment to a browser that asked for a document.
+   */
+  fragmentMode: "suffix" | "header";
+  /** Request header set in `"header"` mode. */
+  partialHeader: string;
+  /**
+   * Attribute marking a layout boundary, and the prefix it covers.
+   *
+   * When both the old page and the response carry these, only the subtree
+   * below the deepest shared boundary is replaced, so navigating within a
+   * section leaves that section's chrome untouched -- and unanimated.
+   * Set to `null` to always replace the whole target.
+   */
+  layoutAttr: string | null;
   /** Class placed on an indicator element while its request is in flight. */
   requestClass: string;
   /** Class placed on content that was just swapped in, for one frame. */

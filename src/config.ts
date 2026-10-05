@@ -2,6 +2,9 @@ import type { Config } from "./types.ts";
 
 export const config: Config = {
   fragmentSuffix: "/_fragment.html",
+  fragmentMode: "suffix",
+  partialHeader: "DP-Partial",
+  layoutAttr: "dp-layout",
   requestClass: "dp-request",
   settlingClass: "dp-settling",
   defaultBoostTarget: "body",
@@ -23,6 +26,20 @@ export function configure(overrides: Partial<Config>): void {
  */
 export function fragmentUrl(url: string, base?: string): string {
   const parsed = new URL(url, base ?? "http://localhost");
+  // In header mode the fragment lives at the page's own URL; the server picks
+  // the representation. Nothing to rewrite.
+  if (config.fragmentMode === "header") {
+    return parsed.pathname + parsed.search + parsed.hash;
+  }
   parsed.pathname = parsed.pathname.replace(/\/+$/, "") + config.fragmentSuffix;
   return parsed.pathname + parsed.search + parsed.hash;
+}
+
+/** Headers for a request, including the partial marker when one is wanted. */
+export function requestHeaders(fragment: boolean): Record<string, string> {
+  const headers: Record<string, string> = { "DP-Request": "true" };
+  if (fragment && config.fragmentMode === "header") {
+    headers[config.partialHeader] = "true";
+  }
+  return headers;
 }

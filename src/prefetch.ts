@@ -1,4 +1,4 @@
-import { config, fragmentUrl } from "./config.ts";
+import { config, fragmentUrl, requestHeaders } from "./config.ts";
 
 /**
  * Fragments already fetched, or in flight.
@@ -38,7 +38,7 @@ export function take(target: string): Promise<string | null> | null {
 
 async function load(target: string): Promise<string | null> {
   try {
-    const response = await config.fetch(target, { headers: { "DP-Request": "true" } });
+    const response = await config.fetch(target, { headers: requestHeaders(true) });
     if (!response.ok) {
       cache.delete(target);
       return null;
