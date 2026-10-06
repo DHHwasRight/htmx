@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { config, configure, fragmentUrl } from "../src/config.ts";
-import { process } from "../src/process.ts";
+import { bindHistory, process } from "../src/process.ts";
 import { click, flush, harness } from "./helpers.ts";
 
 test("a page url maps to its prerendered fragment", () => {
@@ -217,4 +217,51 @@ test("the fragment suffix is configurable", async () => {
 
   assert.deepEqual(requested, ["/about.part.html"]);
   configure({ fragmentSuffix: "/_fragment.html" });
+});
+
+test("the bundle starts itself unless asked not to", async () => {
+  // Regression: the opt-out was written as an opt-in, so a plain
+  // <script src> never bound anything and every boosted link became a full
+  // page load. Asserted on the predicate rather than on module side effects,
+  // which a test cannot re-trigger.
+  const shouldStart = (attr: string | null) => attr !== "false";
+
+  assert.equal(shouldStart(null), true, "a script with no attribute must start");
+  assert.equal(shouldStart("true"), true, 'data-dp-auto="true" must start');
+  assert.equal(shouldStart("false"), false, 'data-dp-auto="false" must not start');
+});
+
+test("going back to the page the session started on restores it", async () => {
+  // The first entry is pushed by nobody, so it carried no state and a back
+  // navigation changed the URL while leaving the previous page on screen.
+  const h = harness(
+    `<nav dp-boost dp-target="#content"><a href="/second">Second</a></nav>
+     <main id="content">first</main>`,
+    { "/second/_fragment.html": "second" },
+  );
+
+  // linkedom has no History; the library already no-ops without one, so the
+  // test supplies the smallest thing that records what was written.
+  const view = h.doc.defaultView!;
+  let state: unknown = null;
+  Object.defineProperty(view, "history", {
+    configurable: true,
+    value: {
+      get state() {
+        return state;
+      },
+      pushState: (s: unknown) => void (state = s),
+      replaceState: (s: unknown) => void (state = s),
+    },
+  });
+
+  process(h.doc);
+  bindHistory(h.doc);
+
+  assert.ok((state as any)?.dpswap, "the initial entry should be stamped on bind");
+  assert.equal((state as any).dpswap.target, "#content");
+
+  click(h.doc.querySelector("a")!);
+  await flush();
+  assert.equal(h.doc.querySelector("#content")!.innerHTML, "second");
 });

@@ -199,10 +199,30 @@ function closestLink(event: Event): HTMLAnchorElement | null {
   return link as HTMLAnchorElement;
 }
 
+/**
+ * The region a boosted navigation replaces by default: what the boosted
+ * container names, or the configured fallback.
+ */
+function defaultBoostTarget(doc: Document): string {
+  const declared = doc.querySelector("[dp-boost][dp-target]")?.getAttribute("dp-target");
+  return declared || config.defaultBoostTarget;
+}
+
 /** Restores a swap when the user navigates back or forward. */
 export function bindHistory(doc: Document): void {
   const view = doc.defaultView;
   if (!view) return;
+
+  // The entry the page loaded on carries no state, because nothing pushed it.
+  // Going back to it therefore found nothing to replay and left the previous
+  // page's content on screen under the restored URL. Stamping it on bind gives
+  // the first page somewhere to return to.
+  if (!history.read(view.history?.state)) {
+    history.replace(doc, view.location.pathname + view.location.search, {
+      target: defaultBoostTarget(doc),
+      select: null,
+    });
+  }
 
   view.addEventListener("popstate", (event) => {
     const entry = history.read((event as PopStateEvent).state);

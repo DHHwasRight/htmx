@@ -39,8 +39,14 @@ export function start(doc: Document = document): void {
 export const swapping = swap;
 export const prefetch = prefetching;
 
+// Opt *out* with data-dp-auto="false", rather than opt in.
+//
+// This read `hasAttribute("data-dp-auto") !== false`, which is only true when
+// the attribute is present — so a plain <script src="dpswap.min.js"> never
+// started, and every boosted link fell back to a full page load. The bundle
+// loaded, configured cleanly and did nothing, which is why it went unnoticed.
 const auto = globalThis.document;
-if (auto && auto.currentScript?.hasAttribute("data-dp-auto") !== false) {
+if (auto && auto.currentScript?.getAttribute("data-dp-auto") !== "false") {
   if (auto.readyState === "loading") {
     auto.addEventListener("DOMContentLoaded", () => start(auto), { once: true });
   } else {
