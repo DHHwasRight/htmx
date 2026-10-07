@@ -5,8 +5,10 @@ import {
   applyOutOfBand,
   narrowToSharedLayout,
   parseFragment,
+  layerTarget,
   selectFrom,
   settle,
+  sharedLayerDepth,
   swapInto,
 } from "./swap.ts";
 import type { RequestSpec } from "./types.ts";
@@ -28,13 +30,15 @@ export async function perform(spec: RequestSpec): Promise<void> {
   try {
     // A hover long enough to have started a prefetch turns the click into a
     // swap with nothing to wait for.
+    const depth = spec.fragment ? sharedLayerDepth(spec.target.ownerDocument, spec.url) : 1;
+
     const prefetched = await take(url)?.catch(() => null);
     if (prefetched !== null && prefetched !== undefined) {
-      apply(spec, prefetched);
+      apply(spec, prefetched, depth);
       return;
     }
 
-    const response = await fetchWithTimeout(url, spec.fragment);
+    const response = await fetchWithTimeout(url, spec.fragment, depth);
 
     if (!response.ok) {
       dispatch(spec.source, "dp:responseError", { spec, response });
@@ -42,7 +46,7 @@ export async function perform(spec: RequestSpec): Promise<void> {
       return;
     }
 
-    apply(spec, await response.text());
+    apply(spec, await response.text(), depth);
   } catch (error) {
     dispatch(spec.source, "dp:sendError", { spec, error });
     if (spec.boosted) navigate(spec.source, spec.url);
@@ -52,7 +56,7 @@ export async function perform(spec: RequestSpec): Promise<void> {
   }
 }
 
-function apply(spec: RequestSpec, html: string): void {
+function apply(spec: RequestSpec, html: string, depth = 1): void {
   const doc = spec.target.ownerDocument;
 
   const parsed = parseFragment(doc, html);
@@ -63,9 +67,16 @@ function apply(spec: RequestSpec, html: string): void {
   // a positional swap means the author chose the region, so leave it alone.
   let target = spec.target;
   if (!spec.select && spec.swap.style === "innerHTML") {
-    const narrowed = narrowToSharedLayout(target, content);
-    target = narrowed.target;
-    content = narrowed.content;
+    // A depth-negotiated response has had those layers trimmed off, so there
+    // are no markers left to match. The depth says where it goes.
+    const byDepth = depth > 1 ? layerTarget(doc, depth) : null;
+    if (byDepth) {
+      target = byDepth;
+    } else {
+      const narrowed = narrowToSharedLayout(target, content);
+      target = narrowed.target;
+      content = narrowed.content;
+    }
   }
 
   if (!dispatch(target, "dp:beforeSwap", { spec, content })) return;
@@ -113,14 +124,14 @@ function resolve(spec: RequestSpec): string {
   return parsed.pathname + parsed.search + parsed.hash;
 }
 
-async function fetchWithTimeout(url: string, fragment: boolean): Promise<Response> {
+async function fetchWithTimeout(url: string, fragment: boolean, depth: number): Promise<Response> {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), config.timeout);
 
   try {
     return await config.fetch(url, {
       signal: controller.signal,
-      headers: requestHeaders(fragment),
+      headers: requestHeaders(fragment, depth),
     });
   } finally {
     clearTimeout(timer);

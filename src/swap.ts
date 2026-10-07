@@ -161,3 +161,57 @@ export function narrowToSharedLayout(
   narrowed.append(...Array.from(newScope.childNodes));
   return { target: oldScope as Element, content: narrowed };
 }
+
+/**
+ * How many layout layers the live page and `url` have in common.
+ *
+ * Counted before the request, so the server can skip the layers the client is
+ * keeping. It needs no manifest: the markers in the current document name the
+ * prefixes this page sits under, and a prefix either covers the destination or
+ * it does not. The first marker is the root, which every page shares.
+ *
+ * Returns 1 when nothing deeper matches, which is the whole-body partial.
+ */
+export function sharedLayerDepth(doc: Document, url: string): number {
+  const attr = config.layoutAttr;
+  if (!attr) return 1;
+
+  // `location` is absent in a server-side or test DOM, so the optional chain
+  // has to reach it as well as the view.
+  const target = new URL(url, doc.defaultView?.location?.href ?? "http://localhost").pathname;
+  const markers = [...doc.querySelectorAll(`[${attr}]`)].map((el) => el.getAttribute(attr) ?? "");
+
+  let depth = 0;
+  for (const prefix of markers) {
+    const covers = prefix === "/" || target === prefix || target.startsWith(`${prefix}/`);
+    if (!covers) break;
+    depth++;
+  }
+  return Math.max(1, depth);
+}
+
+/**
+ * The element holding layer `depth` of the live document.
+ *
+ * When the client asked for a partial by depth, the response contains only
+ * what sits below that layer and therefore carries no markers of its own —
+ * there is nothing to match against. There does not need to be: the depth was
+ * computed here, from this document, so the destination is already known.
+ *
+ * Returns null when the document is not that deep, which leaves the caller to
+ * fall back to matching.
+ */
+export function layerTarget(root: ParentNode, depth: number): Element | null {
+  const attr = config.layoutAttr;
+  if (!attr || depth < 1) return null;
+
+  let scope: ParentNode = root;
+  let found: Element | null = null;
+  for (let i = 0; i < depth; i++) {
+    const next = scope.querySelector(`[${attr}]`);
+    if (!next) return null;
+    found = next;
+    scope = next;
+  }
+  return found;
+}

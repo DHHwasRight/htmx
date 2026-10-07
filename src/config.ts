@@ -35,11 +35,19 @@ export function fragmentUrl(url: string, base?: string): string {
   return parsed.pathname + parsed.search + parsed.hash;
 }
 
-/** Headers for a request, including the partial marker when one is wanted. */
-export function requestHeaders(fragment: boolean): Record<string, string> {
+/**
+ * Headers for a request, including the partial marker when one is wanted.
+ *
+ * The marker carries a number: how many layout layers the client already has
+ * and does not need sent back. The server keeps one prerendered tree per
+ * depth, so asking for `3` returns what sits below the third layer rather than
+ * the whole page below the root. `true` means one, for a caller that does not
+ * count layers.
+ */
+export function requestHeaders(fragment: boolean, depth = 1): Record<string, string> {
   const headers: Record<string, string> = { "DP-Request": "true" };
   if (fragment && config.fragmentMode === "header") {
-    headers[config.partialHeader] = "true";
+    headers[config.partialHeader] = depth > 1 ? String(depth) : "true";
   }
   return headers;
 }

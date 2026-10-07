@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { test, afterEach } from "node:test";
 import { parseHTML } from "linkedom";
 import { config, configure, fragmentUrl, requestHeaders } from "../src/config.ts";
-import { narrowToSharedLayout, parseFragment } from "../src/swap.ts";
+import { narrowToSharedLayout, parseFragment, sharedLayerDepth } from "../src/swap.ts";
 
 const defaults = { ...config };
 afterEach(() => configure(defaults));
@@ -92,4 +92,36 @@ test("narrowing is off when no layout attribute is configured", () => {
   configure({ layoutAttr: null });
   const { target } = narrow(`<div dp-layout="/docs"><p>x</p></div>`);
   assert.equal(target, "app");
+});
+
+test("the shared depth counts the layers the page already has", () => {
+  const d = doc(`
+    <main dp-layout="/">
+      <div dp-layout="/alpha">
+        <div dp-layout="/alpha/card-2"><p>panel</p></div>
+      </div>
+    </main>`);
+
+  // Same card, different panel: everything matches, so only the panel is wanted.
+  assert.equal(sharedLayerDepth(d, "/alpha/card-2/details"), 3);
+  // A different card: the section still matches, the card does not.
+  assert.equal(sharedLayerDepth(d, "/alpha/card-5/overview"), 2);
+  // A different section: only the root matches.
+  assert.equal(sharedLayerDepth(d, "/beta"), 1);
+  // Nothing in common beyond the root.
+  assert.equal(sharedLayerDepth(d, "/"), 1);
+});
+
+test("the depth rides on the partial header", () => {
+  configure({ fragmentMode: "header" });
+  assert.equal(requestHeaders(true, 3)["DP-Partial"], "3");
+  // One level is sent as `true`, so a client that does not count still works.
+  assert.equal(requestHeaders(true, 1)["DP-Partial"], "true");
+  assert.equal(requestHeaders(false, 3)["DP-Partial"], undefined);
+});
+
+test("depth is 1 when layout markers are switched off", () => {
+  configure({ layoutAttr: null });
+  const d = doc(`<main dp-layout="/"><div dp-layout="/alpha"></div></main>`);
+  assert.equal(sharedLayerDepth(d, "/alpha/x"), 1);
 });
