@@ -79,6 +79,76 @@ page wants another page's content without hard-coding the suffix.
 `dp-prefetch` and `dp-fragment` are inherited from the nearest ancestor that declares them, so one
 declaration on a container covers every link inside it.
 
+### Addressing a fragment by header instead of by URL
+
+The default gives every route a second URL. A server that can route on a
+request header does not need one:
+
+```js
+dpswap.configure({ fragmentMode: "header" });
+```
+
+A boosted navigation then requests the page's own URL with `DP-Partial` set,
+and the server decides which representation to return. One URL per route, at
+the cost of needing a server that understands the header — and a `Vary` on it,
+or a cache will hand a fragment to a browser that asked for a document.
+
+## Layouts
+
+A prerendered site has nested layouts, and most navigations change only the
+innermost one. Mark the boundaries and dp-swap will replace the smallest region
+that actually changed:
+
+```html
+<main id="app" dp-layout="/">
+  <div dp-layout="/docs">
+    <aside>…sidebar…</aside>
+    <div dp-layout="/docs/guides">…page…</div>
+  </div>
+</main>
+```
+
+Moving between two guides matches both markers, so only the innermost subtree
+is replaced — the sidebar keeps its scroll position and its open disclosures.
+Arriving from outside `/docs` matches neither, so the whole section is replaced.
+The old DOM is what makes this possible: the client knows where it is without
+being told.
+
+`dp-layout` holds the URL prefix that layer owns. A swap replaces the
+**children** of the deepest marker both pages share, so anything a layout
+renders beside its children is replaced along with them — put the marker on the
+element that wraps exactly the children and the surrounding chrome survives.
+Set `layoutAttr: null` to turn matching off.
+
+### Asking for less
+
+In `fragmentMode: "header"` the client counts how many layers it already holds
+and sends that count, so the server can skip them:
+
+```
+GET /docs/guides/build      DP-Partial: 3
+```
+
+Nothing has to be configured for this and no manifest is involved — the markers
+in the live document name the prefixes the current page sits under, and a
+prefix either covers the destination or it does not. A server that keeps one
+prerendered tree per depth answers with just the innermost region; one that
+does not can treat any value as "give me the fragment".
+
+### Chrome that is not swapped but still changes
+
+Keeping a tab strip in place is right until you notice it is still highlighting
+the tab you left. A response may carry replacements for elements outside the
+swapped region:
+
+```html
+<nav id="card-tabs" dp-swap-oob="outerHTML">…with the new highlight…</nav>
+<div>…the actual swapped content…</div>
+```
+
+`dp-swap-oob` elements are lifted out of the response and applied by `id`
+before the main swap.
+
 ### Prefetching
 
 ```html
@@ -146,11 +216,39 @@ server rendered it. That is the whole point of rendering it first.
 
 ```js
 dpswap.configure({
-  fragmentSuffix: "/_fragment.html",
+  fragmentMode: "suffix",              // or "header"
+  fragmentSuffix: "/_fragment.html",   // suffix mode only
+  partialHeader: "DP-Partial",         // header mode only
+  layoutAttr: "dp-layout",             // null turns layout matching off
   defaultBoostTarget: "body",
+  requestClass: "dp-request",
+  settlingClass: "dp-settling",
   timeout: 10000,
+  prefetchLimit: 32,
+  fetch: globalThis.fetch,             // swappable, which is how the tests run
 });
 ```
+
+The bundle starts itself on load. Opt out with
+`<script src="/dpswap.min.js" data-dp-auto="false">` and call `dpswap.start()`
+yourself.
+
+## Seen working
+
+[prerender](https://github.com/DHHwasRight/prerender) is a static site
+generator built around this library, and its examples are the shortest way to
+see the behaviour rather than read about it.
+
+| File | What it shows |
+|---|---|
+| [`nested-cards/assets/boot.js`](https://github.com/DHHwasRight/prerender/blob/main/examples/nested-cards/assets/boot.js) | The whole client-side setup: header mode, and marking the swapped region so it can be seen |
+| [`nested-cards/src/views/layouts.rsx`](https://github.com/DHHwasRight/prerender/blob/main/examples/nested-cards/src/views/layouts.rsx) | Four nested `dp-layout` markers, and where to put them so chrome survives |
+| [`nested-cards/tests/partial.spec.ts`](https://github.com/DHHwasRight/prerender/blob/main/examples/nested-cards/tests/partial.spec.ts) | What each navigation replaces, asserted by marking live elements and checking which marks survived |
+
+In this repository, [`test/layouts.test.ts`](test/layouts.test.ts) covers
+narrowing and depth counting, [`test/navigation.test.ts`](test/navigation.test.ts)
+covers boosting and history, and [`test/swap.test.ts`](test/swap.test.ts)
+covers the swap styles and out-of-band handling.
 
 ## Development
 
