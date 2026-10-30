@@ -1,4 +1,4 @@
-import { config, configure, fragmentUrl } from "./config.ts";
+import { config, configure, configureFromDocument, fragmentUrl } from "./config.ts";
 import { hydrate } from "./islands.ts";
 import { bindHistory, process } from "./process.ts";
 import { perform } from "./request.ts";
@@ -15,14 +15,16 @@ export type {
 } from "./types.ts";
 export type { DpEventName } from "./events.ts";
 export type { ClientDirective, Mount } from "./islands.ts";
-export { config, configure, fragmentUrl, hydrate, perform, process };
+export { config, configure, configureFromDocument, fragmentUrl, hydrate, perform, process };
 
 /**
  * Binds the document and starts listening for history navigation. Content
  * swapped in later is processed automatically, so this is the only call a
- * page needs to make.
+ * page needs to make. A `<meta name="dp-config">` in the document is applied
+ * first.
  */
 export function start(doc: Document = document): void {
+  configureFromDocument(doc);
   process(doc);
   hydrate(doc);
   bindHistory(doc);

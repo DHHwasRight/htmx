@@ -96,6 +96,18 @@ export interface Config {
    */
   partialDir: string | null;
   /**
+   * The path the site is served under, or `""` at the root (the default).
+   * A GitHub project page at `https://<org>.github.io/<repo>/` uses
+   * `"/<repo>"`.
+   *
+   * With `partialDir`, a fragment request for `/<repo>/docs` at depth 2
+   * fetches `/<repo>/partials/2/docs`: the partial tree sits under the base
+   * and mirrors the routes without it. Layout markers are matched against
+   * the full pathname, and also against the pathname without the base, so
+   * `dp-layout="/<repo>/docs"` and `dp-layout="/docs"` both work.
+   */
+  base: string;
+  /**
    * Attribute marking a layout boundary, and the prefix it covers.
    *
    * When both the old page and the response carry these, only the subtree

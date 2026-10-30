@@ -1,4 +1,4 @@
-import { config } from "./config.ts";
+import { config, withoutBase } from "./config.ts";
 import { attr } from "./attrs.ts";
 import type { SwapSpec, SwapStyle } from "./types.ts";
 import { SWAP_STYLES } from "./types.ts";
@@ -180,14 +180,25 @@ export function sharedLayerDepth(doc: Document, url: string): number {
   // has to reach it as well as the view.
   const target = new URL(url, doc.defaultView?.location?.href ?? "http://localhost").pathname;
   const markers = [...doc.querySelectorAll(`[${attr}]`)].map((el) => el.getAttribute(attr) ?? "");
+  // A site under a base path may render its markers with the base or without
+  // it; the pathname is compared in both forms.
+  const relative = withoutBase(target);
 
   let depth = 0;
   for (const prefix of markers) {
-    const covers = prefix === "/" || target === prefix || target.startsWith(`${prefix}/`);
-    if (!covers) break;
+    if (!covers(prefix, target) && !covers(prefix, relative)) break;
     depth++;
   }
   return Math.max(1, depth);
+}
+
+/**
+ * Whether a layout prefix owns a pathname. A trailing slash on the prefix is
+ * ignored, so the root of a base-path site (`/d3set/`) owns `/d3set/x`.
+ */
+function covers(prefix: string, pathname: string): boolean {
+  const owner = prefix.replace(/\/+$/, "");
+  return owner === "" || pathname === owner || pathname.startsWith(`${owner}/`);
 }
 
 /**

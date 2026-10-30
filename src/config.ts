@@ -5,6 +5,7 @@ export const config: Config = {
   fragmentMode: "suffix",
   partialHeader: "DP-Partial",
   partialDir: null,
+  base: "",
   layoutAttr: "dp-layout",
   requestClass: "dp-request",
   settlingClass: "dp-settling",
@@ -16,6 +17,56 @@ export const config: Config = {
 
 export function configure(overrides: Partial<Config>): void {
   Object.assign(config, overrides);
+}
+
+/**
+ * The site's base path with one leading slash and no trailing one: `""`,
+ * `"/d3set"`. `"/d3set/"` and `"d3set"` mean the same thing.
+ */
+export function basePath(): string {
+  const trimmed = config.base.replace(/^\/+|\/+$/g, "");
+  return trimmed ? `/${trimmed}` : "";
+}
+
+/**
+ * A pathname without the site's base path: `/d3set/charts` → `/charts`. A
+ * pathname outside the base is returned unchanged.
+ */
+export function withoutBase(pathname: string): string {
+  const base = basePath();
+  if (!base) return pathname;
+  if (pathname === base) return "/";
+  return pathname.startsWith(`${base}/`) ? pathname.slice(base.length) : pathname;
+}
+
+/**
+ * Settings written in the document, so a static page needs no inline script:
+ *
+ *     <meta name="dp-config" content='{"partialDir":"partials","base":"/d3set"}'>
+ *
+ * Only the keys of `Config` that hold plain values are read. Invalid JSON is
+ * ignored, and a later `configure()` call still wins.
+ */
+export function configureFromDocument(doc: Document): void {
+  const content = doc.querySelector('meta[name="dp-config"]')?.getAttribute("content");
+  if (!content) return;
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(content);
+  } catch {
+    return;
+  }
+  if (!parsed || typeof parsed !== "object") return;
+  const overrides: Record<string, unknown> = {};
+  for (const [key, value] of Object.entries(parsed)) {
+    if (key === "fetch" || !(key in config)) continue;
+    const current = (config as unknown as Record<string, unknown>)[key];
+    const nullable = key === "partialDir" || key === "layoutAttr";
+    // A nullable key also takes a string; every other key keeps its type.
+    const fits = value === null ? nullable : typeof value === typeof current || (nullable && typeof value === "string");
+    if (fits) overrides[key] = value;
+  }
+  configure(overrides as Partial<Config>);
 }
 
 /**
@@ -31,7 +82,10 @@ export function fragmentUrl(url: string, base?: string, depth = 1): string {
   // directory per prerendered tree, each a mirror of the site's routes.
   if (config.partialDir !== null) {
     const dir = config.partialDir.replace(/^\/+|\/+$/g, "");
-    return `/${dir}/${Math.max(1, depth)}${parsed.pathname}${parsed.search}${parsed.hash}`;
+    // On a site under a base path (a GitHub project page), the tree sits
+    // under the base too, and mirrors the routes without it.
+    const path = withoutBase(parsed.pathname);
+    return `${basePath()}/${dir}/${Math.max(1, depth)}${path}${parsed.search}${parsed.hash}`;
   }
   // In header mode the fragment lives at the page's own URL; the server picks
   // the representation. Nothing to rewrite.

@@ -177,6 +177,26 @@ The setting is off (`null`) by default, and when set it takes precedence over
 `fragmentMode`. Prefetching asks for the same depth the click will, so a
 prefetched partial is still used.
 
+#### Under a base path
+
+A GitHub project page is served under the repository name:
+`https://<org>.github.io/<repo>/`. Set `base` to that path. The partial tree
+then sits under the base and mirrors the routes without it:
+
+```js
+dpswap.configure({ partialDir: "partials", base: "/d3set" });
+```
+
+```
+page      /d3set/charts/bar
+fetches   /d3set/partials/2/charts/bar      → <site>/partials/2/charts/bar/index.html
+```
+
+Layout markers may carry the base (`dp-layout="/d3set/charts"`) or not
+(`dp-layout="/charts"`); both match. `"/d3set/"` and `"d3set"` mean the same
+as `"/d3set"`. A link outside the base keeps its whole path below
+`partials/<depth>/`.
+
 ### Chrome that is not swapped but still changes
 
 Keeping a tab strip in place is right until you notice it is still highlighting
@@ -262,6 +282,7 @@ dpswap.configure({
   fragmentSuffix: "/_fragment.html",   // suffix mode only
   partialHeader: "DP-Partial",         // header mode only
   partialDir: null,                    // "partials": depth goes in the path
+  base: "",                            // "/<repo>" on a GitHub project page
   layoutAttr: "dp-layout",             // null turns layout matching off
   defaultBoostTarget: "body",
   requestClass: "dp-request",
@@ -270,6 +291,14 @@ dpswap.configure({
   prefetchLimit: 32,
   fetch: globalThis.fetch,             // swappable, which is how the tests run
 });
+```
+
+A static page can set the same keys without a script, in a `<meta>` element
+that `start()` reads first. The value is JSON; `fetch` cannot be set this way,
+and a later `configure()` call still wins:
+
+```html
+<meta name="dp-config" content='{"partialDir":"partials","base":"/d3set"}'>
 ```
 
 The bundle starts itself on load. Opt out with
