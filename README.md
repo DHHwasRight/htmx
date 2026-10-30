@@ -1,9 +1,36 @@
-# dp-swap
+<p align="center">
+  <img src="https://raw.githubusercontent.com/DHHwasRight/.github/main/profile/logo.png" width="96" alt="">
+</p>
 
-Partial page updates for prerendered sites. An htmx rewrite reduced to the
-features a static site actually needs, in TypeScript, with no dependencies.
+<h1 align="center">dp-swap</h1>
 
-**11.0 kB minified.**
+<p align="center">Partial page updates for prerendered sites. An htmx rewrite reduced to the features a static site actually needs, in TypeScript, with no dependencies.</p>
+
+> **Status:** The DHHwasRight org is named after RailsConf 2026. It is an
+> attempt to implement DHH's claims (HTML over the wire, no build step, one
+> database) to see how far that gets. This project is mostly vibe coded: an
+> LLM wrote most of it. It is a thought exercise. We use it for internal
+> products where mission criticality is not needed.
+
+The repository is `htmx`. The library is dp-swap. Its attributes start with
+`dp-`, and the bundle is `dpswap.min.js`: 12.7 kB minified. It has no runtime
+dependencies.
+
+## Quick start
+
+dp-swap is not on npm. Build the bundle from this repository and copy it into
+your site:
+
+```sh
+git clone https://github.com/DHHwasRight/htmx.git
+cd htmx
+npm ci
+npm run build    # writes dist/dpswap.min.js (IIFE, global `dpswap`)
+                 # and dist/dpswap.js (ES module)
+cp dist/dpswap.min.js /path/to/your/site/public/
+```
+
+Then load it and mark a container, as [Usage](#usage) shows.
 
 ## Why not htmx
 
@@ -250,10 +277,25 @@ narrowing and depth counting, [`test/navigation.test.ts`](test/navigation.test.t
 covers boosting and history, and [`test/swap.test.ts`](test/swap.test.ts)
 covers the swap styles and out-of-band handling.
 
+## How it fits with the sibling projects
+
+- **[prerender](https://github.com/DHHwasRight/prerender)** writes the
+  per-depth partial trees that dp-swap fetches. Its examples carry a copy of
+  `dpswap.min.js`.
+- **[depoth](https://github.com/DHHwasRight/depoth)** builds those partial
+  trees through prerender, and names dp-swap as the client side of partial
+  navigation. It does not ship the file; a site adds it.
+- **[brocanth](https://github.com/DHHwasRight/brocanth)** vendors
+  `dpswap.min.js` (built from commit `f80aeeb`) in two places.
+  `brocanth create --with rsx,rsx-htmx` writes it into a new project. The
+  `brocanth-admin` backoffice inlines it into the pages it renders.
+
+dp-swap has no code dependency on rsx, jt, zod or strata.
+
 ## Development
 
 ```
-npm install
+npm ci
 npm run ci      # typecheck, test, build
 ```
 
@@ -261,3 +303,7 @@ Tests run on linkedom rather than a browser. The library never reaches for a
 global DOM constructor — events, history and location all come from the
 document being operated on — which is what makes that possible and what keeps
 it usable from a server-side DOM.
+
+## License
+
+`package.json` declares MIT. The repository has no LICENSE file yet.
