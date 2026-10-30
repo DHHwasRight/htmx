@@ -9,7 +9,7 @@
 > products where mission criticality is not needed.
 
 The repository is `htmx`. The library is dp-swap. Its attributes start with
-`dp-`, and the bundle is `dpswap.min.js`: 12.7 kB minified. It has no runtime
+`dp-`, and the bundle is `dpswap.min.js`: 12.9 kB minified. It has no runtime
 dependencies.
 
 ## Quick start
@@ -158,6 +158,25 @@ prefix either covers the destination or it does not. A server that keeps one
 prerendered tree per depth answers with just the innermost region; one that
 does not can treat any value as "give me the fragment".
 
+### Asking for less without a server
+
+A static host cannot read a header. Set a partial directory and the depth goes
+into the path instead:
+
+```js
+dpswap.configure({ partialDir: "partials" });
+```
+
+```
+GET /partials/3/docs/guides/build      no DP-Partial header
+```
+
+Each `partials/<depth>/` directory mirrors the site's routes and holds what
+sits below that many layers. The host serves the directory and nothing else.
+The setting is off (`null`) by default, and when set it takes precedence over
+`fragmentMode`. Prefetching asks for the same depth the click will, so a
+prefetched partial is still used.
+
 ### Chrome that is not swapped but still changes
 
 Keeping a tab strip in place is right until you notice it is still highlighting
@@ -242,6 +261,7 @@ dpswap.configure({
   fragmentMode: "suffix",              // or "header"
   fragmentSuffix: "/_fragment.html",   // suffix mode only
   partialHeader: "DP-Partial",         // header mode only
+  partialDir: null,                    // "partials": depth goes in the path
   layoutAttr: "dp-layout",             // null turns layout matching off
   defaultBoostTarget: "body",
   requestClass: "dp-request",

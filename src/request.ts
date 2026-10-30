@@ -23,15 +23,16 @@ import type { RequestSpec } from "./types.ts";
 export async function perform(spec: RequestSpec): Promise<void> {
   if (!dispatch(spec.source, "dp:beforeRequest", { spec })) return;
 
-  const url = resolve(spec);
+  // Counted before the URL is resolved: with a partial directory, the depth
+  // is part of the path.
+  const depth = spec.fragment ? sharedLayerDepth(spec.target.ownerDocument, spec.url) : 1;
+  const url = resolve(spec, depth);
   const indicator = spec.indicator;
   indicator?.classList.add(config.requestClass);
 
   try {
     // A hover long enough to have started a prefetch turns the click into a
     // swap with nothing to wait for.
-    const depth = spec.fragment ? sharedLayerDepth(spec.target.ownerDocument, spec.url) : 1;
-
     const prefetched = await take(url)?.catch(() => null);
     if (prefetched !== null && prefetched !== undefined) {
       apply(spec, prefetched, depth);
@@ -116,9 +117,9 @@ function swapRoot(spec: RequestSpec): Element {
  * request wants the URL it named, which is what lets the same library drive a
  * static site and a server.
  */
-function resolve(spec: RequestSpec): string {
+function resolve(spec: RequestSpec, depth: number): string {
   const base = documentBase(spec.source);
-  if (spec.fragment) return fragmentUrl(spec.url, base);
+  if (spec.fragment) return fragmentUrl(spec.url, base, depth);
 
   const parsed = new URL(spec.url, base ?? "http://localhost");
   return parsed.pathname + parsed.search + parsed.hash;

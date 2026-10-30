@@ -4,6 +4,7 @@ export const config: Config = {
   fragmentSuffix: "/_fragment.html",
   fragmentMode: "suffix",
   partialHeader: "DP-Partial",
+  partialDir: null,
   layoutAttr: "dp-layout",
   requestClass: "dp-request",
   settlingClass: "dp-settling",
@@ -24,8 +25,14 @@ export function configure(overrides: Partial<Config>): void {
  * built twice, once as a full document and once as the content alone, so a
  * partial navigation is a static file read.
  */
-export function fragmentUrl(url: string, base?: string): string {
+export function fragmentUrl(url: string, base?: string, depth = 1): string {
   const parsed = new URL(url, base ?? "http://localhost");
+  // A static host cannot read a header, so the depth goes into the path: one
+  // directory per prerendered tree, each a mirror of the site's routes.
+  if (config.partialDir !== null) {
+    const dir = config.partialDir.replace(/^\/+|\/+$/g, "");
+    return `/${dir}/${Math.max(1, depth)}${parsed.pathname}${parsed.search}${parsed.hash}`;
+  }
   // In header mode the fragment lives at the page's own URL; the server picks
   // the representation. Nothing to rewrite.
   if (config.fragmentMode === "header") {
@@ -46,7 +53,8 @@ export function fragmentUrl(url: string, base?: string): string {
  */
 export function requestHeaders(fragment: boolean, depth = 1): Record<string, string> {
   const headers: Record<string, string> = { "DP-Request": "true" };
-  if (fragment && config.fragmentMode === "header") {
+  // With a partial directory the path already carries the depth.
+  if (fragment && config.fragmentMode === "header" && config.partialDir === null) {
     headers[config.partialHeader] = depth > 1 ? String(depth) : "true";
   }
   return headers;

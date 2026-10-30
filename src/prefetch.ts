@@ -18,13 +18,18 @@ export function size(): number {
   return cache.size;
 }
 
-/** Starts fetching a page's fragment, unless it is already on its way. */
-export function prefetch(url: string, base?: string): void {
-  const target = fragmentUrl(url, base);
+/**
+ * Starts fetching a page's fragment, unless it is already on its way.
+ *
+ * `depth` has to be the one the click will compute, or the click asks for a
+ * different URL and the prefetch is wasted.
+ */
+export function prefetch(url: string, base?: string, depth = 1): void {
+  const target = fragmentUrl(url, base, depth);
   if (cache.has(target)) return;
 
   evictOldest();
-  cache.set(target, load(target));
+  cache.set(target, load(target, depth));
 }
 
 /**
@@ -36,9 +41,9 @@ export function take(target: string): Promise<string | null> | null {
   return cache.get(target) ?? null;
 }
 
-async function load(target: string): Promise<string | null> {
+async function load(target: string, depth: number): Promise<string | null> {
   try {
-    const response = await config.fetch(target, { headers: requestHeaders(true) });
+    const response = await config.fetch(target, { headers: requestHeaders(true, depth) });
     if (!response.ok) {
       cache.delete(target);
       return null;

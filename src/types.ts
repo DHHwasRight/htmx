@@ -86,6 +86,16 @@ export interface Config {
   /** Request header set in `"header"` mode. */
   partialHeader: string;
   /**
+   * Directory holding one prerendered tree per layout depth, or `null` to
+   * turn this off (the default). The usual value is `"partials"`.
+   *
+   * When set, it takes precedence over `fragmentMode`: a fragment request for
+   * `/docs/guides` at depth 3 fetches `/partials/3/docs/guides` and sends no
+   * partial header. A pure static host then serves partials by serving its
+   * directory, with no server that routes on a header.
+   */
+  partialDir: string | null;
+  /**
    * Attribute marking a layout boundary, and the prefix it covers.
    *
    * When both the old page and the response carry these, only the subtree

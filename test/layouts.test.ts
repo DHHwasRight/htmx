@@ -2,7 +2,10 @@ import assert from "node:assert/strict";
 import { test, afterEach } from "node:test";
 import { parseHTML } from "linkedom";
 import { config, configure, fragmentUrl, requestHeaders } from "../src/config.ts";
+import * as prefetch from "../src/prefetch.ts";
+import { process } from "../src/process.ts";
 import { narrowToSharedLayout, parseFragment, sharedLayerDepth } from "../src/swap.ts";
+import { click, flush, harness } from "./helpers.ts";
 
 const defaults = { ...config };
 afterEach(() => configure(defaults));
@@ -125,3 +128,59 @@ test("depth is 1 when layout markers are switched off", () => {
   const d = doc(`<main dp-layout="/"><div dp-layout="/alpha"></div></main>`);
   assert.equal(sharedLayerDepth(d, "/alpha/x"), 1);
 });
+
+test("a partial directory puts the depth in the path and sends no header", () => {
+  configure({ partialDir: "partials" });
+  assert.equal(fragmentUrl("/docs/guides/build", undefined, 3), "/partials/3/docs/guides/build");
+  assert.equal(fragmentUrl("/search?q=x"), "/partials/1/search?q=x");
+  assert.equal(fragmentUrl("/", undefined, 0), "/partials/1/");
+  assert.deepEqual(requestHeaders(true, 3), { "DP-Request": "true" });
+});
+
+test("a partial directory takes precedence over header mode", () => {
+  configure({ fragmentMode: "header", partialDir: "/static/partials/" });
+  assert.equal(fragmentUrl("/alpha", undefined, 2), "/static/partials/2/alpha");
+  assert.equal(requestHeaders(true, 2)["DP-Partial"], undefined);
+});
+
+test("a navigation fetches the partial tree for the depth it shares", async () => {
+  configure({ partialDir: "partials" });
+  const { doc, requested } = harness(
+    `<nav dp-boost dp-target="#app"><a id="link" href="/alpha/card-2/details">Details</a></nav>
+     <main id="app" dp-layout="/">
+       <div dp-layout="/alpha"><aside>sidebar</aside>
+         <div dp-layout="/alpha/card-2"><p>overview</p></div>
+       </div>
+     </main>`,
+    { "/partials/3/alpha/card-2/details": "<p>details</p>" },
+  );
+  process(doc);
+
+  click(doc.querySelector("#link")!);
+  await flush();
+
+  assert.deepEqual(requested, ["/partials/3/alpha/card-2/details"]);
+  assert.equal(doc.querySelector('[dp-layout="/alpha/card-2"]')!.innerHTML, "<p>details</p>");
+  assert.match(doc.querySelector("aside")!.outerHTML, /sidebar/);
+});
+
+test("a prefetch asks for the same depth the click will", async () => {
+  configure({ partialDir: "partials" });
+  prefetch.clear();
+  const { doc, requested } = harness(
+    `<nav dp-boost dp-prefetch dp-target="#app"><a id="link" href="/alpha/x">X</a></nav>
+     <main id="app" dp-layout="/"><div dp-layout="/alpha"><p>a</p></div></main>`,
+    { "/partials/2/alpha/x": "<p>x</p>" },
+  );
+  process(doc);
+
+  const link = doc.querySelector("#link")!;
+  link.dispatchEvent(new (doc.defaultView!).Event("pointerenter", { bubbles: true }));
+  await flush();
+  click(link);
+  await flush();
+
+  assert.deepEqual(requested, ["/partials/2/alpha/x"]);
+  assert.equal(doc.querySelector('[dp-layout="/alpha"]')!.innerHTML, "<p>x</p>");
+});
+

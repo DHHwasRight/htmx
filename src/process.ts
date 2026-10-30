@@ -3,6 +3,7 @@ import { config } from "./config.ts";
 import * as history from "./history.ts";
 import { prefetch } from "./prefetch.ts";
 import { perform } from "./request.ts";
+import { sharedLayerDepth } from "./swap.ts";
 import type { RequestSpec } from "./types.ts";
 
 const BOUND = new WeakSet<Element>();
@@ -180,7 +181,9 @@ function bindPrefetch(el: Element): void {
     if (setting === null || setting === "false") return;
 
     const href = link.getAttribute("href");
-    if (href) prefetch(href, link.ownerDocument.defaultView?.location.href);
+    if (!href) return;
+    const doc = link.ownerDocument;
+    prefetch(href, doc.defaultView?.location?.href, sharedLayerDepth(doc, href));
   };
 
   el.addEventListener("pointerenter", start, { capture: true });
