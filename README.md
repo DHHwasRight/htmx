@@ -1,7 +1,3 @@
-<p align="center">
-  <img src="https://raw.githubusercontent.com/DHHwasRight/.github/main/profile/logo.png" width="96" alt="">
-</p>
-
 <h1 align="center">dp-swap</h1>
 
 <p align="center">Partial page updates for prerendered sites. An htmx rewrite reduced to the features a static site actually needs, in TypeScript, with no dependencies.</p>
