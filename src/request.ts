@@ -1,4 +1,4 @@
-import { config, fragmentUrl, requestHeaders } from "./config.ts";
+import { config, fragmentUrl, negotiatesDepth, requestHeaders } from "./config.ts";
 import { dispatch } from "./events.ts";
 import { take } from "./prefetch.ts";
 import {
@@ -24,8 +24,10 @@ export async function perform(spec: RequestSpec): Promise<void> {
   if (!dispatch(spec.source, "dp:beforeRequest", { spec })) return;
 
   // Counted before the URL is resolved: with a partial directory, the depth
-  // is part of the path.
-  const depth = spec.fragment ? sharedLayerDepth(spec.target.ownerDocument, spec.url) : 1;
+  // is part of the path. Left at 1 when the request cannot carry it, so the
+  // response is matched by its markers instead.
+  const depth =
+    spec.fragment && negotiatesDepth() ? sharedLayerDepth(spec.target.ownerDocument, spec.url) : 1;
   const url = resolve(spec, depth);
   const indicator = spec.indicator;
   indicator?.classList.add(config.requestClass);

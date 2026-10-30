@@ -43,6 +43,16 @@ export function fragmentUrl(url: string, base?: string, depth = 1): string {
 }
 
 /**
+ * Whether a fragment request tells the server how many layers to skip.
+ *
+ * Only then is the response trimmed. In suffix mode the full content arrives,
+ * markers included, and has to be matched rather than placed by depth.
+ */
+export function negotiatesDepth(): boolean {
+  return config.partialDir !== null || config.fragmentMode === "header";
+}
+
+/**
  * Headers for a request, including the partial marker when one is wanted.
  *
  * The marker carries a number: how many layout layers the client already has

@@ -184,3 +184,26 @@ test("a prefetch asks for the same depth the click will", async () => {
   assert.equal(doc.querySelector('[dp-layout="/alpha"]')!.innerHTML, "<p>x</p>");
 });
 
+test("in suffix mode a full fragment is matched by its markers, not placed by depth", async () => {
+  const { doc, requested } = harness(
+    `<nav dp-boost dp-target="#app"><a id="link" href="/alpha/card-2/details">Details</a></nav>
+     <main id="app" dp-layout="/">
+       <div dp-layout="/alpha"><aside>sidebar</aside>
+         <div dp-layout="/alpha/card-2"><p>overview</p></div>
+       </div>
+     </main>`,
+    {
+      // Suffix mode has no way to ask for less, so the whole content arrives.
+      "/alpha/card-2/details/_fragment.html":
+        `<div dp-layout="/alpha"><aside>sidebar</aside><div dp-layout="/alpha/card-2"><p>details</p></div></div>`,
+    },
+  );
+  process(doc);
+
+  click(doc.querySelector("#link")!);
+  await flush();
+
+  assert.deepEqual(requested, ["/alpha/card-2/details/_fragment.html"]);
+  assert.equal(doc.querySelectorAll("[dp-layout]").length, 3);
+  assert.equal(doc.querySelector('[dp-layout="/alpha/card-2"]')!.innerHTML, "<p>details</p>");
+});

@@ -9,7 +9,7 @@
 > products where mission criticality is not needed.
 
 The repository is `htmx`. The library is dp-swap. Its attributes start with
-`dp-`, and the bundle is `dpswap.min.js`: 12.9 kB minified. It has no runtime
+`dp-`, and the bundle is `dpswap.min.js`: 13.0 kB minified. It has no runtime
 dependencies.
 
 ## Quick start
