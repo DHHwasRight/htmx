@@ -9,8 +9,8 @@
 > products where mission criticality is not needed.
 
 The repository is `htmx`. The library is dp-swap. Its attributes start with
-`dp-`, and the bundle is `dpswap.min.js`: 13.0 kB minified. It has no runtime
-dependencies.
+`dp-`. The bundle is `dpswap.min.js` (12.1 kB minified); with islands it is
+`dpswap.full.min.js` (13.7 kB). It has no runtime dependencies.
 
 ## Quick start
 
@@ -21,10 +21,15 @@ your site:
 git clone https://github.com/DHHwasRight/htmx.git
 cd htmx
 npm ci
-npm run build    # writes dist/dpswap.min.js (IIFE, global `dpswap`)
-                 # and dist/dpswap.js (ES module)
+npm run build
 cp dist/dpswap.min.js /path/to/your/site/public/
 ```
+
+| File | What it is |
+|---|---|
+| `dist/dpswap.min.js` | IIFE, global `dpswap`, starts itself. No islands. |
+| `dist/dpswap.full.min.js` | The same with islands. |
+| `dist/dpswap.js`, `dist/islands.js` | ES modules with no side effects, for a bundler. |
 
 Then load it and mark a container, as [Usage](#usage) shows.
 
@@ -243,6 +248,7 @@ arrived. Cancelling `dp:beforeRequest` or `dp:beforeSwap` stops there.
 A server-rendered placeholder names a module and says when it is worth loading:
 
 ```html
+<!-- needs dpswap.full.min.js, or `hydrate` passed to start() -->
 <div dp-island="/islands/search.js"
      dp-client="visible"
      dp-props='{"placeholder":"Search this page..."}'>
@@ -265,6 +271,22 @@ first response.
 
 If the module fails to load, the markup underneath it stays exactly as the
 server rendered it. That is the whole point of rendering it first.
+
+### Paying only for what you use
+
+`dpswap.min.js` has no islands; `dpswap.full.min.js` includes them. With a bundler,
+islands are an extension passed to `start`, so a page that does not import them
+does not ship them:
+
+```js
+import { start } from "@brocanth/dpswap";
+import { hydrate } from "@brocanth/dpswap/islands";
+
+start(document, [hydrate]);   // or start() for no islands
+```
+
+An extension is any `(root: ParentNode) => void`. It runs on the document at
+start and on every subtree swapped in after that.
 
 ## What is deliberately missing
 
@@ -301,9 +323,11 @@ and a later `configure()` call still wins:
 <meta name="dp-config" content='{"partialDir":"partials","base":"/d3set"}'>
 ```
 
-The bundle starts itself on load. Opt out with
+The prebuilt bundles start themselves on load. Opt out with
 `<script src="/dpswap.min.js" data-dp-auto="false">` and call `dpswap.start()`
-yourself.
+yourself (`dpswap.start(document, [dpswap.hydrate])` with the full bundle,
+to keep islands). The ES
+modules never start themselves: call `start` from your own code.
 
 ## Seen working
 

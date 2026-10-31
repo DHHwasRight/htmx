@@ -1,5 +1,4 @@
 import { config, configure, configureFromDocument, fragmentUrl } from "./config.ts";
-import { hydrate } from "./islands.ts";
 import { bindHistory, process } from "./process.ts";
 import { perform } from "./request.ts";
 import * as prefetching from "./prefetch.ts";
@@ -14,8 +13,16 @@ export type {
   TriggerSpec,
 } from "./types.ts";
 export type { DpEventName } from "./events.ts";
-export type { ClientDirective, Mount } from "./islands.ts";
-export { config, configure, configureFromDocument, fragmentUrl, hydrate, perform, process };
+export { config, configure, configureFromDocument, fragmentUrl, perform, process };
+
+/**
+ * Runs on the document at start and on every subtree swapped in later.
+ *
+ * Islands are one: `start(document, [hydrate])`. Passing them in, rather than
+ * calling them from here, is what lets a bundler drop a feature a site never
+ * imports.
+ */
+export type Extension = (root: ParentNode) => void;
 
 /**
  * Binds the document and starts listening for history navigation. Content
@@ -23,10 +30,10 @@ export { config, configure, configureFromDocument, fragmentUrl, hydrate, perform
  * page needs to make. A `<meta name="dp-config">` in the document is applied
  * first.
  */
-export function start(doc: Document = document): void {
+export function start(doc: Document = document, extensions: readonly Extension[] = []): void {
   configureFromDocument(doc);
   process(doc);
-  hydrate(doc);
+  for (const extend of extensions) extend(doc);
   bindHistory(doc);
 
   doc.addEventListener("dp:afterSwap", (event) => {
@@ -34,24 +41,9 @@ export function start(doc: Document = document): void {
     if (!target || !("querySelectorAll" in target)) return;
 
     process(target);
-    hydrate(target);
+    for (const extend of extensions) extend(target);
   });
 }
 
 export const swapping = swap;
 export const prefetch = prefetching;
-
-// Opt *out* with data-dp-auto="false", rather than opt in.
-//
-// This read `hasAttribute("data-dp-auto") !== false`, which is only true when
-// the attribute is present — so a plain <script src="dpswap.min.js"> never
-// started, and every boosted link fell back to a full page load. The bundle
-// loaded, configured cleanly and did nothing, which is why it went unnoticed.
-const auto = globalThis.document;
-if (auto && auto.currentScript?.getAttribute("data-dp-auto") !== "false") {
-  if (auto.readyState === "loading") {
-    auto.addEventListener("DOMContentLoaded", () => start(auto), { once: true });
-  } else {
-    start(auto);
-  }
-}

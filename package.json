@@ -6,6 +6,13 @@
   "main": "dist/dpswap.js",
   "module": "dist/dpswap.js",
   "types": "dist/dpswap.d.ts",
+  "exports": {
+    ".": "./dist/dpswap.js",
+    "./islands": "./dist/islands.js"
+  },
+  "sideEffects": [
+    "./src/bundle-*.ts"
+  ],
   "files": [
     "dist",
     "src"
